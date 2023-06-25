@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+    node:
+        command: sh -c "npm install && npm run dev"
+        container_name: node
+        depends_on:
+            - nginx
+        hostname: node
+        image: node:19-alpine
+        ports:
+            - 443:443
+        volumes:
+            - ./:/var/www
+        working_dir: /var/www
+    #MySql
+    db:
+        image: mysql:8
+        container_name: org_mysql
+        volumes:
+            - ./mysql/:/var/lib/mysql
+        environment:
+            - MYSQL_ROOT_PASSWORD=1234
+            - MYSQL_DATABASE=orgdb
+            - MYSQL_USER=admin
+            - MYSQL_PASSWORD=1234
+        restart: always
+    #   networks:
+    #     - web_network
+    #Laravel App
+    app:
+        # command: bash -c "
+        #     if ! [ -f '.env' ]; then cp .env.example .env; fi &&
+        #     chmod -R 777 storage &&
+        #     if ! [ -d 'vendor' ]; then composer update --no-ansi --no-interaction --no-progress --optimize-autoloader --prefer-dist; fi &&
+        #     if ! grep -Fq "APP_KEY=base64:" .env ; then php artisan key:generate; fi &&
+        #     php artisan storage:link &&
+        #     php artisan migrate &&
+        #     php artisan self-diagnosis"
+        build:
+            args:
+                user: tor
+                uid: 1000
+            context: ./
+            dockerfile: Dockerfile
+        # image: laravel_for_work
+        image: org-app
+        container_name: org_app
+        restart: always
+        volumes:
+            - ./:/var/www/
+        working_dir: /var/www/
+        ports:
+            - "9000"
+        # networks:
+        #   - web_network
+    #nginx service
+    nginx:
+        image: nginx:stable-alpine
+        container_name: nginx
+        depends_on:
+            - app
+        volumes:
+            - ./:/var/www
+            - ./nginx/conf/nginx.conf:/etc/nginx/conf/nginx.conf:ro
+            - ./nginx/conf.d:/etc/nginx/conf.d:ro
+        ports:
+            - "8989:80"
+        restart: always
+        # networks:
+        #   - web_network
+    phpmyadmin:
+        image: phpmyadmin
+        container_name: laravel_phpmyadmin
+        restart: always
+        ports:
+            - 8988:80
+        environment:
+            - PMA_ARBITRARY=1
+        # networks:
+        #   - web_network
+# networks:
+#   web_network:
+#     name: laravel
+#     driver: bridge
